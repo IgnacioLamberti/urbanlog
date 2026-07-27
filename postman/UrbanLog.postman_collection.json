@@ -1,0 +1,208 @@
+{
+  "info": {
+    "name": "UrbanLog API",
+    "description": "Colección con los 2 scopes de la API de UrbanLog.\n\nScope 1 (privado): usado por la SPA, protegido con sesión de Clerk (Bearer token). Para conseguir un token de prueba: loguéate en el frontend (http://localhost:5173), abrí las DevTools -> Application/Console y ejecutá `await window.Clerk.session.getToken()`, copiá el resultado en la variable de entorno `clerkToken`.\n\nScope 2 (público): pensado para consumo externo (ej. Power BI), protegido con el header `x-api-key` que debe coincidir con `PUBLIC_API_KEY` de `backend/.env`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3001" }
+  ],
+  "item": [
+    {
+      "name": "Scope 1 - Privado (App, Clerk)",
+      "auth": {
+        "type": "bearer",
+        "bearer": [{ "key": "token", "value": "{{clerkToken}}", "type": "string" }]
+      },
+      "item": [
+        {
+          "name": "Auth",
+          "item": [
+            {
+              "name": "Usuario actual",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/api/v1/auth/me", "host": ["{{baseUrl}}"], "path": ["api", "v1", "auth", "me"] }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Incidentes",
+          "item": [
+            {
+              "name": "Listar incidentes",
+              "request": {
+                "method": "GET",
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/incidents?status=open&page=1&limit=20",
+                  "host": ["{{baseUrl}}"], "path": ["api", "v1", "incidents"],
+                  "query": [
+                    { "key": "status", "value": "open" },
+                    { "key": "category", "value": "", "disabled": true },
+                    { "key": "priority", "value": "", "disabled": true },
+                    { "key": "mine", "value": "true", "disabled": true },
+                    { "key": "moderationStatus", "value": "pending", "disabled": true },
+                    { "key": "page", "value": "1" },
+                    { "key": "limit", "value": "20" }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Crear incidente",
+              "request": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/api/v1/incidents", "host": ["{{baseUrl}}"], "path": ["api", "v1", "incidents"] },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    { "key": "title", "value": "Bache en Av. San Martín", "type": "text" },
+                    { "key": "description", "value": "Hay un pozo grande que rompe las ruedas de los autos", "type": "text" },
+                    { "key": "location", "value": "{\"address\":\"Av. San Martín 450\",\"lat\":-32.4076,\"lng\":-63.2304}", "type": "text" },
+                    { "key": "images", "type": "file", "src": [] }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "Obtener incidente por ID",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/api/v1/incidents/{{incidentId}}", "host": ["{{baseUrl}}"], "path": ["api", "v1", "incidents", "{{incidentId}}"] }
+              }
+            },
+            {
+              "name": "Cambiar estado (operator/admin)",
+              "request": {
+                "method": "PATCH",
+                "url": { "raw": "{{baseUrl}}/api/v1/incidents/{{incidentId}}/status", "host": ["{{baseUrl}}"], "path": ["api", "v1", "incidents", "{{incidentId}}", "status"] },
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"status\": \"in_progress\"\n}" }
+              }
+            },
+            {
+              "name": "Moderar (moderator/admin)",
+              "request": {
+                "method": "PATCH",
+                "url": { "raw": "{{baseUrl}}/api/v1/incidents/{{incidentId}}/moderation", "host": ["{{baseUrl}}"], "path": ["api", "v1", "incidents", "{{incidentId}}", "moderation"] },
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"status\": \"approved\"\n}" }
+              }
+            },
+            {
+              "name": "Stats",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/api/v1/incidents/stats", "host": ["{{baseUrl}}"], "path": ["api", "v1", "incidents", "stats"] }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Comentarios",
+          "item": [
+            {
+              "name": "Listar comentarios de un incidente",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/api/v1/incidents/{{incidentId}}/comments", "host": ["{{baseUrl}}"], "path": ["api", "v1", "incidents", "{{incidentId}}", "comments"] }
+              }
+            },
+            {
+              "name": "Crear comentario",
+              "request": {
+                "method": "POST",
+                "url": { "raw": "{{baseUrl}}/api/v1/incidents/{{incidentId}}/comments", "host": ["{{baseUrl}}"], "path": ["api", "v1", "incidents", "{{incidentId}}", "comments"] },
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"text\": \"Ya avisamos a la municipalidad\"\n}" }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Usuarios (admin)",
+          "item": [
+            {
+              "name": "Listar usuarios",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/api/v1/users", "host": ["{{baseUrl}}"], "path": ["api", "v1", "users"] }
+              }
+            },
+            {
+              "name": "Cambiar rol de usuario",
+              "request": {
+                "method": "PATCH",
+                "url": { "raw": "{{baseUrl}}/api/v1/users/{{userId}}/role", "host": ["{{baseUrl}}"], "path": ["api", "v1", "users", "{{userId}}", "role"] },
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"role\": \"moderator\"\n}" }
+              }
+            }
+          ]
+        },
+        {
+          "name": "Insights IA (admin)",
+          "item": [
+            {
+              "name": "Generar insights de la ciudad",
+              "request": {
+                "method": "GET",
+                "url": { "raw": "{{baseUrl}}/api/v1/insights", "host": ["{{baseUrl}}"], "path": ["api", "v1", "insights"] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Scope 2 - Público (externo, ej. Power BI)",
+      "auth": {
+        "type": "apikey",
+        "apikey": [
+          { "key": "key", "value": "x-api-key", "type": "string" },
+          { "key": "value", "value": "{{publicApiKey}}", "type": "string" },
+          { "key": "in", "value": "header", "type": "string" }
+        ]
+      },
+      "item": [
+        {
+          "name": "Listar incidentes (sanitizado, sin PII)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/public/v1/incidents?page=1&limit=50",
+              "host": ["{{baseUrl}}"], "path": ["api", "public", "v1", "incidents"],
+              "query": [
+                { "key": "status", "value": "", "disabled": true },
+                { "key": "category", "value": "", "disabled": true },
+                { "key": "priority", "value": "", "disabled": true },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "50" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Stats agregadas",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/public/v1/stats", "host": ["{{baseUrl}}"], "path": ["api", "public", "v1", "stats"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health check",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+          }
+        }
+      ]
+    }
+  ]
+}

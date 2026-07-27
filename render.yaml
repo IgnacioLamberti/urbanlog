@@ -1,0 +1,38 @@
+# Definición del servicio de backend para Render (https://render.com).
+# Las variables marcadas con sync:false NO se versionan: se cargan a mano en el
+# panel de Render, ya que contienen credenciales.
+services:
+  - type: web
+    name: urbanlog-api
+    runtime: node
+    plan: free
+    region: oregon
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        sync: false # URL del frontend en Vercel (admite varias separadas por coma)
+      - key: MONGODB_URI
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: PUBLIC_API_KEY
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
