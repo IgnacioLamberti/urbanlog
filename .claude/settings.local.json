@@ -25,7 +25,8 @@
       "Bash(curl -s -i -X PATCH http://localhost:4000/api/tickets/000000000000000000000000/status)",
       "mcp__claude-in-chrome__computer",
       "mcp__claude-in-chrome__read_page",
-      "Bash(pandoc -t markdown '/Users/ignaciolamberti/Desktop/Estudio/Programación III/SmarTick/docs/Administracion_de_Proyectos_SmarTick.docx')"
+      "Bash(pandoc -t markdown '/Users/ignaciolamberti/Desktop/Estudio/Programación III/SmarTick/docs/Administracion_de_Proyectos_SmarTick.docx')",
+      "Bash(python3 -c ' *)"
     ]
   }
 }

@@ -45,6 +45,26 @@ const incidentSchema = new mongoose.Schema(
     reportedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     possibleDuplicateOf: { type: mongoose.Schema.Types.ObjectId, ref: "Incident", default: null },
+
+    // Traza de los cambios de estado operativo. Permite medir tiempos de
+    // atención y de resolución, que no pueden derivarse de updatedAt porque
+    // este se modifica ante cualquier actualización del documento.
+    statusHistory: {
+      type: [
+        {
+          _id: false,
+          from: { type: String, enum: [...STATUSES, null], default: null },
+          to: { type: String, enum: STATUSES, required: true },
+          changedAt: { type: Date, required: true },
+          changedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+        },
+      ],
+      default: [],
+    },
+
+    // Marcas planas derivadas del historial, para consultas y análisis directos.
+    inProgressAt: { type: Date, default: null },
+    resolvedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
@@ -53,5 +73,6 @@ incidentSchema.index({ "location.coordinates": "2dsphere" });
 incidentSchema.index({ status: 1, "moderation.status": 1 });
 incidentSchema.index({ category: 1 });
 incidentSchema.index({ createdAt: -1 });
+incidentSchema.index({ possibleDuplicateOf: 1 });
 
 export const Incident = mongoose.model("Incident", incidentSchema);

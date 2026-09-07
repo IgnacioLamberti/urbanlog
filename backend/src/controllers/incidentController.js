@@ -62,7 +62,11 @@ export const getIncident = asyncHandler(async (req, res) => {
 });
 
 export const updateIncidentStatus = asyncHandler(async (req, res) => {
-  const incident = await incidentService.updateIncidentStatus(req.params.id, req.body.status);
+  const incident = await incidentService.updateIncidentStatus(
+    req.params.id,
+    req.body.status,
+    req.dbUser._id
+  );
   ok(res, incident);
 });
 

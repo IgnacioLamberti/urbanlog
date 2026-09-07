@@ -189,6 +189,22 @@
             "method": "GET",
             "url": { "raw": "{{baseUrl}}/api/public/v1/stats", "host": ["{{baseUrl}}"], "path": ["api", "public", "v1", "stats"] }
           }
+        },
+        {
+          "name": "Cambios de estado (tabla de hechos)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/public/v1/status-changes", "host": ["{{baseUrl}}"], "path": ["api", "public", "v1", "status-changes"] },
+            "description": "Una fila por transición de estado. Alimenta la tabla FACT de cambios en el modelo de BI."
+          }
+        },
+        {
+          "name": "Catálogos (tablas de dimensión)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/public/v1/catalogs", "host": ["{{baseUrl}}"], "path": ["api", "public", "v1", "catalogs"] },
+            "description": "Categorías, prioridades y estados con sus etiquetas y orden. Alimenta las tablas DIM."
+          }
         }
       ]
     },

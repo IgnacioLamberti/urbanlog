@@ -65,15 +65,29 @@ export async function createIncident({ title, description, location, files, repo
 
 export const DEFAULT_LIMIT = 20;
 export const MAX_LIMIT = 100;
+// El scope público es de solo lectura y está pensado para herramientas de
+// análisis, que necesitan extraer el conjunto completo en pocas peticiones.
+export const MAX_ANALYTICS_LIMIT = 1000;
+
+// Cuenta, para cada incidente, cuántos reportes lo tienen como original. El
+// total de reportes de un incidente es esa cantidad más el reporte propio.
+export async function countReportsByIncident(incidentIds) {
+  const agrupados = await Incident.aggregate([
+    { $match: { possibleDuplicateOf: { $in: incidentIds } } },
+    { $group: { _id: "$possibleDuplicateOf", duplicados: { $sum: 1 } } },
+  ]);
+
+  return new Map(agrupados.map((g) => [String(g._id), g.duplicados]));
+}
 
 // Acota la paginación a valores razonables: sin un tope, un `limit` arbitrario
 // desde el query permitiría volcar la colección completa en una sola petición.
-function normalizePagination(page, limit) {
+function normalizePagination(page, limit, maxLimit = MAX_LIMIT) {
   const safePage = Math.max(1, Number.parseInt(page, 10) || 1);
   const parsedLimit = Number.parseInt(limit, 10);
   const safeLimit = Number.isNaN(parsedLimit)
     ? DEFAULT_LIMIT
-    : Math.min(Math.max(1, parsedLimit), MAX_LIMIT);
+    : Math.min(Math.max(1, parsedLimit), maxLimit);
   return { page: safePage, limit: safeLimit };
 }
 
@@ -88,8 +102,9 @@ export async function listIncidents({
   search,
   page: rawPage,
   limit: rawLimit,
+  maxLimit,
 }) {
-  const { page, limit } = normalizePagination(rawPage, rawLimit);
+  const { page, limit } = normalizePagination(rawPage, rawLimit, maxLimit);
 
   const filter = {};
   if (status) filter.status = status;
@@ -116,7 +131,7 @@ export async function listIncidents({
 
 export const getIncidentById = (id) => Incident.findById(id).populate(populateFields);
 
-export async function updateIncidentStatus(id, status) {
+export async function updateIncidentStatus(id, status, changedBy = null) {
   const incident = await Incident.findById(id).populate(populateFields);
   if (!incident) {
     const err = new Error("Incidente no encontrado");
@@ -130,6 +145,15 @@ export async function updateIncidentStatus(id, status) {
     err.status = 409;
     throw err;
   }
+
+  const previousStatus = incident.status;
+  const changedAt = new Date();
+
+  incident.statusHistory.push({ from: previousStatus, to: status, changedAt, changedBy });
+  if (status === "in_progress" && !incident.inProgressAt) incident.inProgressAt = changedAt;
+  if (status === "resolved") incident.resolvedAt = changedAt;
+  // Si se reabre, el incidente deja de estar resuelto.
+  if (status !== "resolved") incident.resolvedAt = null;
 
   incident.status = status;
   await incident.save();
