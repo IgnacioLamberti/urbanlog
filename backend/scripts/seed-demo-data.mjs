@@ -322,12 +322,13 @@ async function generar() {
   const originales = [];
 
   for (let i = 0; i < CANTIDAD_INCIDENTES; i++) {
-    const categoria = CATEGORIAS.find(
-      (c) => c.clave === elegirPonderado(CATEGORIAS.map((c) => ({ valor: c.clave, peso: c.peso })))
-    );
-    const barrio = BARRIOS.find(
-      (b) => b.nombre === elegirPonderado(BARRIOS.map((b) => ({ valor: b.nombre, peso: b.peso })))
-    );
+    // El sorteo debe resolverse una sola vez: si se invoca dentro del find, se
+    // re-evalúa en cada comparación y casi nunca encuentra coincidencia.
+    const claveCategoria = elegirPonderado(CATEGORIAS.map((c) => ({ valor: c.clave, peso: c.peso })));
+    const categoria = CATEGORIAS.find((c) => c.clave === claveCategoria);
+
+    const nombreBarrio = elegirPonderado(BARRIOS.map((b) => ({ valor: b.nombre, peso: b.peso })));
+    const barrio = BARRIOS.find((b) => b.nombre === nombreBarrio);
 
     // Más reportes en los meses recientes que al inicio del período.
     const sesgo = Math.pow(Math.random(), 0.7);
