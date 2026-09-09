@@ -1,0 +1,261 @@
+═══════════════════════════════════════════════════════════════════════════
+UrbanLog — Medidas DAX
+═══════════════════════════════════════════════════════════════════════════
+
+CÓMO USARLO
+  En Power BI: seleccioná la tabla FACT_Incidentes en el panel de la derecha →
+  clic derecho → Nueva medida → pegá el bloque (nombre incluido) → Enter.
+  Repetir para cada una.
+
+  Conviene crear primero una tabla vacía llamada "_Medidas" (Inicio → Escribir
+  datos → tabla sin filas) y alojar ahí todas las medidas: quedan agrupadas en
+  un solo lugar y no mezcladas con las columnas de los hechos.
+
+
+───────────────────────────────────────────────────────────────────────────
+1. VOLUMEN
+───────────────────────────────────────────────────────────────────────────
+
+Total Incidentes = COUNTROWS(FACT_Incidentes)
+
+
+Total Reportes =
+-- Distinto de "Total Incidentes": un incidente puede haber sido reportado
+-- por varios vecinos. Esta medida cuenta reportes, no problemas físicos.
+SUM(FACT_Incidentes[CantidadReportes])
+
+
+Incidentes Únicos =
+-- Excluye los que fueron detectados como duplicados de otro.
+CALCULATE(
+    COUNTROWS(FACT_Incidentes),
+    FACT_Incidentes[EsDuplicado] = FALSE()
+)
+
+
+Tasa de Duplicación =
+DIVIDE(
+    CALCULATE(COUNTROWS(FACT_Incidentes), FACT_Incidentes[EsDuplicado] = TRUE()),
+    [Total Incidentes]
+)
+
+
+───────────────────────────────────────────────────────────────────────────
+2. ESTADO Y RESOLUCIÓN
+───────────────────────────────────────────────────────────────────────────
+
+Incidentes Abiertos =
+CALCULATE([Total Incidentes], DIM_Estado[EstadoKey] = "open")
+
+
+Incidentes En Proceso =
+CALCULATE([Total Incidentes], DIM_Estado[EstadoKey] = "in_progress")
+
+
+Incidentes Resueltos =
+CALCULATE([Total Incidentes], DIM_Estado[EstadoKey] = "resolved")
+
+
+Tasa de Resolución =
+DIVIDE([Incidentes Resueltos], [Total Incidentes])
+
+
+Incidentes Sin Atender =
+-- Abiertos que nunca pasaron a "en proceso": es el trabajo pendiente real.
+CALCULATE(
+    [Total Incidentes],
+    DIM_Estado[EstadoKey] = "open",
+    ISBLANK(FACT_Incidentes[FechaAtencion])
+)
+
+
+───────────────────────────────────────────────────────────────────────────
+3. PRIORIDAD
+───────────────────────────────────────────────────────────────────────────
+
+Incidentes Críticos =
+CALCULATE([Total Incidentes], DIM_Prioridad[PrioridadKey] = "critica")
+
+
+Críticos Sin Resolver =
+CALCULATE(
+    [Total Incidentes],
+    DIM_Prioridad[PrioridadKey] = "critica",
+    DIM_Estado[EstadoKey] <> "resolved"
+)
+
+
+% Críticos =
+DIVIDE([Incidentes Críticos], [Total Incidentes])
+
+
+Nivel de Prioridad Promedio =
+-- Usa el nivel numérico de la dimensión (baja=1 … critica=4). Permite
+-- comparar la severidad media entre categorías o entre barrios.
+AVERAGEX(FACT_Incidentes, RELATED(DIM_Prioridad[Nivel]))
+
+
+───────────────────────────────────────────────────────────────────────────
+4. TIEMPOS
+───────────────────────────────────────────────────────────────────────────
+
+Horas Promedio hasta Atención =
+AVERAGE(FACT_Incidentes[HorasHastaAtencion])
+
+
+Horas Promedio hasta Resolución =
+AVERAGE(FACT_Incidentes[HorasHastaResolucion])
+
+
+Días Promedio hasta Resolución =
+DIVIDE([Horas Promedio hasta Resolución], 24)
+
+
+Mediana Horas hasta Resolución =
+-- La mediana resiste mejor los casos extremos que el promedio: unos pocos
+-- incidentes muy demorados distorsionan la media.
+MEDIAN(FACT_Incidentes[HorasHastaResolucion])
+
+
+Resueltos en menos de 48h =
+CALCULATE(
+    [Total Incidentes],
+    FACT_Incidentes[HorasHastaResolucion] <= 48
+)
+
+
+% Resueltos en menos de 48h =
+DIVIDE([Resueltos en menos de 48h], [Incidentes Resueltos])
+
+
+───────────────────────────────────────────────────────────────────────────
+5. ANÁLISIS DE PRIORIDAD vs CANTIDAD DE REPORTES
+   (Estas son las medidas del punto 5 de la consigna.)
+───────────────────────────────────────────────────────────────────────────
+
+Reportes Promedio por Incidente =
+AVERAGE(FACT_Incidentes[CantidadReportes])
+
+
+Máximo de Reportes =
+MAX(FACT_Incidentes[CantidadReportes])
+
+
+Incidentes Muy Reportados =
+-- Umbral de 5: sobre los datos analizados, sólo el 2% supera ese valor.
+CALCULATE(
+    [Total Incidentes],
+    FACT_Incidentes[CantidadReportes] >= 5
+)
+
+
+% con un Solo Reporte =
+DIVIDE(
+    CALCULATE([Total Incidentes], FACT_Incidentes[CantidadReportes] = 1),
+    [Total Incidentes]
+)
+
+
+Correlación Prioridad-Reportes =
+-- Coeficiente de correlación de Pearson entre el nivel de prioridad y la
+-- cantidad de reportes. Es la medida que responde de forma cuantitativa la
+-- pregunta central de la consigna.
+-- Valor cercano a 0 = no hay relación; cercano a 1 = relación fuerte.
+VAR Datos =
+    ADDCOLUMNS(
+        FILTER(FACT_Incidentes, FACT_Incidentes[EsDuplicado] = FALSE()),
+        "@X", RELATED(DIM_Prioridad[Nivel]),
+        "@Y", FACT_Incidentes[CantidadReportes]
+    )
+VAR N        = COUNTROWS(Datos)
+VAR PromX    = AVERAGEX(Datos, [@X])
+VAR PromY    = AVERAGEX(Datos, [@Y])
+VAR Covar    = SUMX(Datos, ([@X] - PromX) * ([@Y] - PromY))
+VAR DesvX    = SQRT(SUMX(Datos, ([@X] - PromX) ^ 2))
+VAR DesvY    = SQRT(SUMX(Datos, ([@Y] - PromY) ^ 2))
+RETURN
+    DIVIDE(Covar, DesvX * DesvY)
+
+
+Incidentes Incoherentes =
+-- Casos que rompen el patrón esperado en ambas direcciones:
+--   muchos reportes con baja urgencia, o urgencia máxima con un solo reporte.
+-- Es el indicador que alimenta la conclusión del análisis de prioridad.
+VAR MuyReportadosBajaPrioridad =
+    CALCULATE(
+        [Total Incidentes],
+        FACT_Incidentes[CantidadReportes] >= 5,
+        DIM_Prioridad[Nivel] <= 2
+    )
+VAR CriticosPocoReportados =
+    CALCULATE(
+        [Total Incidentes],
+        FACT_Incidentes[CantidadReportes] = 1,
+        DIM_Prioridad[PrioridadKey] = "critica"
+    )
+RETURN
+    MuyReportadosBajaPrioridad + CriticosPocoReportados
+
+
+───────────────────────────────────────────────────────────────────────────
+6. EVOLUCIÓN TEMPORAL
+───────────────────────────────────────────────────────────────────────────
+
+Incidentes Mes Anterior =
+CALCULATE(
+    [Total Incidentes],
+    DATEADD(DIM_Calendario[FechaKey], -1, MONTH)
+)
+
+
+Variación Mensual % =
+DIVIDE(
+    [Total Incidentes] - [Incidentes Mes Anterior],
+    [Incidentes Mes Anterior]
+)
+
+
+Incidentes Acumulados =
+CALCULATE(
+    [Total Incidentes],
+    FILTER(
+        ALL(DIM_Calendario[FechaKey]),
+        DIM_Calendario[FechaKey] <= MAX(DIM_Calendario[FechaKey])
+    )
+)
+
+
+Promedio Diario =
+DIVIDE([Total Incidentes], DISTINCTCOUNT(DIM_Calendario[FechaKey]))
+
+
+───────────────────────────────────────────────────────────────────────────
+7. MEDIDAS DE APOYO PARA LAS VISUALIZACIONES
+───────────────────────────────────────────────────────────────────────────
+
+Color Semáforo Resolución =
+-- Para formato condicional en tarjetas o tablas.
+SWITCH(
+    TRUE(),
+    [Tasa de Resolución] >= 0.6, "#34D399",
+    [Tasa de Resolución] >= 0.3, "#FBBF24",
+    "#F87171"
+)
+
+
+Título Análisis Prioridad =
+-- Título dinámico: comunica la conclusión del análisis directamente en el
+-- gráfico, en lugar de dejarla librada a la interpretación de quien lo mire.
+VAR R = [Correlación Prioridad-Reportes]
+RETURN
+    "Correlación entre prioridad y cantidad de reportes: r = "
+    & FORMAT(R, "0.000")
+    & " ("
+    & SWITCH(
+        TRUE(),
+        ABS(R) < 0.1, "prácticamente nula",
+        ABS(R) < 0.3, "débil",
+        ABS(R) < 0.5, "moderada",
+        "fuerte"
+      )
+    & ")"
