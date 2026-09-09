@@ -22,7 +22,15 @@ Total Incidentes = COUNTROWS(FACT_Incidentes)
 Total Reportes =
 -- Distinto de "Total Incidentes": un incidente puede haber sido reportado
 -- por varios vecinos. Esta medida cuenta reportes, no problemas físicos.
-SUM(FACT_Incidentes[CantidadReportes])
+--
+-- El filtro por EsDuplicado es imprescindible: CantidadReportes solo tiene
+-- sentido en la fila del incidente ORIGINAL, que ya acumula todos sus
+-- duplicados. Las filas de los duplicados valen siempre 1, y sumarlas
+-- contaría dos veces el mismo reporte.
+CALCULATE(
+    SUM(FACT_Incidentes[CantidadReportes]),
+    FACT_Incidentes[EsDuplicado] = FALSE()
+)
 
 
 Incidentes Únicos =
@@ -134,7 +142,14 @@ DIVIDE([Resueltos en menos de 48h], [Incidentes Resueltos])
 ───────────────────────────────────────────────────────────────────────────
 
 Reportes Promedio por Incidente =
-AVERAGE(FACT_Incidentes[CantidadReportes])
+-- Se promedia solo sobre los incidentes originales. Incluir los duplicados
+-- distorsiona el resultado hacia abajo, porque esas filas valen siempre 1:
+-- sobre los datos analizados, la diferencia es 1,43 (incorrecto) contra
+-- 1,74 (correcto).
+CALCULATE(
+    AVERAGE(FACT_Incidentes[CantidadReportes]),
+    FACT_Incidentes[EsDuplicado] = FALSE()
+)
 
 
 Máximo de Reportes =
@@ -150,10 +165,19 @@ CALCULATE(
 
 
 % con un Solo Reporte =
-DIVIDE(
-    CALCULATE([Total Incidentes], FACT_Incidentes[CantidadReportes] = 1),
-    [Total Incidentes]
-)
+-- Ambos términos se restringen a los incidentes originales: de lo contrario
+-- los 227 duplicados, que siempre valen 1, inflarían artificialmente el
+-- porcentaje de "problemas reportados una sola vez".
+VAR Originales =
+    CALCULATE([Total Incidentes], FACT_Incidentes[EsDuplicado] = FALSE())
+VAR ConUnSoloReporte =
+    CALCULATE(
+        [Total Incidentes],
+        FACT_Incidentes[EsDuplicado] = FALSE(),
+        FACT_Incidentes[CantidadReportes] = 1
+    )
+RETURN
+    DIVIDE(ConUnSoloReporte, Originales)
 
 
 Correlación Prioridad-Reportes =
